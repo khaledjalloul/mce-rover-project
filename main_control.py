@@ -67,19 +67,23 @@ def set_motor2(speed, direction):
   # Set the duty cycle of the PWM channel
   motor2_pwm.ChangeDutyCycle(speed)
 
+set_motor1(50,"forward")
+set_motor2(50,"forward")
+
+# set_motor2(50,"backward")
+# set_motor1(50,"backward")
+
 # Function to make the robot move forward
 def move_forward(speed, signal):
-  # Set the speed and direction of both motors
-  set_motor1(speed, "forward")
-  set_motor2(speed, "forward")
- 
-  # Loop until the signal is received
-  while not signal.is_set():
-    continue
- 
-  # Stop both motors
-  set_motor1(0, "stop")
-  set_motor2(0, "stop")
+  
+  if not signal:
+    # Set the speed and direction of both motors
+    set_motor1(speed, "forward")
+    set_motor2(speed, "forward")
+  else:
+    # Stop both motors
+    set_motor1(0, "stop")
+    set_motor2(0, "stop")
 
  
 # Function to make the robot move backward
