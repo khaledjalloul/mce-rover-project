@@ -1,4 +1,6 @@
 import RPi.GPIO as GPIO
+import math
+import time
 
 # Set the GPIO mode to BCM
 GPIO.setmode(GPIO.BCM)
@@ -12,6 +14,19 @@ motor2_in2 = 22
 # Set the pins for the motor driver outputs
 motor1_en = 23
 motor2_en = 24
+
+# Set the GPIO pins that the encoder is connected to
+encoder_pin = 17
+
+# Encoder parameters
+encoder_val = 0
+old_time = 0
+pulses_per_rev = 20
+wheel_circumference = 2 * math.pi * 6.5 # in cm
+pwm_speed = 25
+
+# Set the encoder pins as inputs
+GPIO.setup(encoder_pin, GPIO.IN)
 
 # Set the GPIO pins for the motor driver inputs as outputs
 GPIO.setup(motor1_in1, GPIO.OUT)
@@ -67,69 +82,64 @@ def set_motor2(speed, direction):
   # Set the duty cycle of the PWM channel
   motor2_pwm.ChangeDutyCycle(speed)
 
-set_motor1(50,"forward")
-set_motor2(50,"forward")
-
-# set_motor2(50,"backward")
-# set_motor1(50,"backward")
-
 # Function to make the robot move forward
-def move_forward(speed, signal):
-  
-  if not signal:
-    # Set the speed and direction of both motors
-    set_motor1(speed, "forward")
-    set_motor2(speed, "forward")
-  else:
-    # Stop both motors
-    set_motor1(0, "stop")
-    set_motor2(0, "stop")
+def move_forward(speed):
+  # Set the speed and direction of both motors
+  set_motor1(speed, "forward")
+  set_motor2(speed, "forward")
 
- 
 # Function to make the robot move backward
-def move_backward(speed, signal):
+def move_backward(speed):
   # Set the speed and direction of both motors
   set_motor1(speed, "backward")
   set_motor2(speed, "backward")
- 
-  # Loop until the signal is received
-  while not signal.is_set():
-    continue
- 
-  # Stop both motors
-  set_motor1(0, "stop")
-  set_motor2(0, "stop")
 
 # Function to make the robot turn left
-def turn_left(speed, signal):
+def turn_left(speed):
   # Set the speed and direction of motor 1
   set_motor1(speed, "backward")
  
   # Set the speed and direction of motor 2
   set_motor2(speed, "forward")
- 
-  # Loop until the signal is received
-  while not signal.is_set():
-    continue
- 
-  # Stop both motors
-  set_motor1(0, "stop")
-  set_motor2(0, "stop")
 
 # Function to make the robot turn right
-def turn_right(speed, signal):
+def turn_right(speed):
   # Set the speed and direction of motor 1
   set_motor1(speed, "forward")
  
   # Set the speed and direction of motor 2
   set_motor2(speed, "backward")
- 
-  # Loop until the signal is received
-  while not signal.is_set():
-    continue
- 
-  # Stop both motors
-  set_motor1(0, "stop")
-  set_motor2(0, "stop")
+
+def stop_motors():
+  set_motor1(0, 'stop')
+  set_motor2(0, 'stop')
+
+# Define a function to be called whenever the encoder value changes
+def update_encoder_value():
+  global encoder_val
+  if GPIO.input(encoder_pin) == GPIO.HIGH:
+    encoder_val += 1
+
+def get_linear_vel():
+  global current_time, old_time
+  current_time = time.time()
+  if current_time - old_time >= 3:
+      pulses_per_sec = encoder_val / (current_time - old_time)
+      rev_per_sec = pulses_per_sec / pulses_per_rev
+      linear_vel = rev_per_sec * wheel_circumference
+      old_time = time.time()
+      return linear_vel
+
+def adjust_speed(linear_vel):
+  pass
+
+if __name__ == '__main__':
+  GPIO.add_event_detect(encoder_pin, GPIO.HIGH, callback=update_encoder_value)
+  print("Moving forward.")
+  move_forward(pwm_speed)
+  main_time = time.time() + 10
+  while time.time() < main_time:
+    current_vel = get_linear_vel()
+    print(current_vel)
 
 
