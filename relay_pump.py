@@ -6,7 +6,7 @@ import time
 GPIO.setmode(GPIO.BCM)
 
 # Set the GPIO pin that the relay is connected to
-relay_pin = 17
+relay_pin = 10
 
 # Set the relay pin as an output
 GPIO.setup(relay_pin, GPIO.OUT)
@@ -15,7 +15,7 @@ GPIO.setup(relay_pin, GPIO.OUT)
 GPIO.output(relay_pin, GPIO.HIGH)
 
 # Wait for 5 seconds
-time.sleep(5)
+time.sleep(20)
 
 # Turn the water pump off
 GPIO.output(relay_pin, GPIO.LOW)

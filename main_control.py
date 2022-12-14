@@ -44,8 +44,8 @@ GPIO.setup(motor1_en, GPIO.OUT)
 GPIO.setup(motor2_en, GPIO.OUT)
 
 # Create PWM channels for the motor driver outputs with a frequency of 100 Hz
-motor1_pwm = GPIO.PWM(motor1_en, pwm_speed)
-motor2_pwm = GPIO.PWM(motor2_en, pwm_speed2)
+motor1_pwm = GPIO.PWM(motor1_en, 100)
+motor2_pwm = GPIO.PWM(motor2_en, 100)
 
 # Start the PWM channels with a duty cycle of 0
 motor1_pwm.start(0)
@@ -151,8 +151,13 @@ def get_linear_vel():
 
 def adjust_speed(change, change2):
     global pwm_speed, pwm_speed2
-    pwm_speed += change
-    pwm_speed2 += change2
+    print(pwm_speed, change, pwm_speed + change, pwm_speed2, change2, pwm_speed2 + change)
+    if (pwm_speed + change <= 100 and pwm_speed + change >=0):
+    	pwm_speed += change
+    	set_motor1(pwm_speed, "forward")
+    if (pwm_speed2 + change2 <= 100 and pwm_speed2 + change2 >=0):
+    	pwm_speed2 += change2
+    	set_motor2(pwm_speed2, "forward")
 
 if __name__ == '__main__':
     try:
