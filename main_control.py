@@ -26,7 +26,8 @@ encoder_val2 = 0
 old_time = 0
 pulses_per_rev = 20
 wheel_circumference = math.pi * 6.5  # in cm
-pwm_speed = 100
+pwm_speed = 50
+pwm_speed2 = 50
 
 # Set the encoder pins as inputs
 GPIO.setup(encoder_pin, GPIO.IN)
@@ -43,14 +44,15 @@ GPIO.setup(motor1_en, GPIO.OUT)
 GPIO.setup(motor2_en, GPIO.OUT)
 
 # Create PWM channels for the motor driver outputs with a frequency of 100 Hz
-motor1_pwm = GPIO.PWM(motor1_en, 100)
-motor2_pwm = GPIO.PWM(motor2_en, 100)
+motor1_pwm = GPIO.PWM(motor1_en, pwm_speed)
+motor2_pwm = GPIO.PWM(motor2_en, pwm_speed2)
 
 # Start the PWM channels with a duty cycle of 0
 motor1_pwm.start(0)
 motor2_pwm.start(0)
 
-pid = PID(1, 0.1, 0.05, setpoint=50)
+pid = PID(1, 0, 0, setpoint=50)
+pid.sample_time = 0.1
 
 # Function to control the speed and direction of motor 1
 def set_motor1(speed, direction):
@@ -147,8 +149,10 @@ def get_linear_vel():
     else:
         return None, None
 
-def adjust_speed(linear_vel):
-    pass
+def adjust_speed(change, change2):
+    global pwm_speed, pwm_speed2
+    pwm_speed += change
+    pwm_speed2 += change2
 
 if __name__ == '__main__':
     try:
@@ -162,6 +166,10 @@ if __name__ == '__main__':
         while time.time() < main_time:
             current_vel, current_vel2 = get_linear_vel()
             if current_vel is not None:
+                control = pid(current_vel)
+                control2 = pid(current_vel2)
+                adjust_speed(control, control2)
+                
                 print("Vel 1: " + str(current_vel) +
                       ", Vel 2: " + str(current_vel2))
     except Exception as e:
