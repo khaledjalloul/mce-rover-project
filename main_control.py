@@ -1,184 +1,80 @@
 import RPi.GPIO as GPIO
-import math
-import time
-from simple_pid import PID
+import cv2
+import numpy as np
 
-# Set the GPIO mode to BCM
-GPIO.setmode(GPIO.BCM)
+from motor_controller import MotorController
 
-# Set the pins for the motor driver inputs
-motor1_in1 = 17
-motor1_in2 = 18
-motor2_in1 = 27
-motor2_in2 = 22
-
-# Set the pins for the motor driver outputs
-motor1_en = 23
-motor2_en = 24
-
-# Set the GPIO pins that the encoder is connected to
-encoder_pin = 3
-encoder_pin2 = 4
-
-# Encoder parameters
-encoder_val = 0
-encoder_val2 = 0
-old_time = 0
-pulses_per_rev = 20
-wheel_circumference = math.pi * 6.5  # in cm
-pwm_speed = 50
-pwm_speed2 = 50
-
-# Set the encoder pins as inputs
-GPIO.setup(encoder_pin, GPIO.IN)
-GPIO.setup(encoder_pin2, GPIO.IN)
-
-# Set the GPIO pins for the motor driver inputs as outputs
-GPIO.setup(motor1_in1, GPIO.OUT)
-GPIO.setup(motor1_in2, GPIO.OUT)
-GPIO.setup(motor2_in1, GPIO.OUT)
-GPIO.setup(motor2_in2, GPIO.OUT)
-
-# Set the GPIO pins for the motor driver outputs as outputs
-GPIO.setup(motor1_en, GPIO.OUT)
-GPIO.setup(motor2_en, GPIO.OUT)
-
-# Create PWM channels for the motor driver outputs with a frequency of 100 Hz
-motor1_pwm = GPIO.PWM(motor1_en, 100)
-motor2_pwm = GPIO.PWM(motor2_en, 100)
-
-# Start the PWM channels with a duty cycle of 0
-motor1_pwm.start(0)
-motor2_pwm.start(0)
-
-pid = PID(1, 0, 0, setpoint=50)
-pid.sample_time = 0.1
-
-# Function to control the speed and direction of motor 1
-def set_motor1(speed, direction):
-    if direction == "forward":
-        # Set the input pins to control the motor direction
-        GPIO.output(motor1_in1, GPIO.HIGH)
-        GPIO.output(motor1_in2, GPIO.LOW)
-    elif direction == "backward":
-        # Set the input pins to control the motor direction
-        GPIO.output(motor1_in1, GPIO.LOW)
-        GPIO.output(motor1_in2, GPIO.HIGH)
-    else:
-        # Stop the motor
-        GPIO.output(motor1_in1, GPIO.LOW)
-        GPIO.output(motor1_in2, GPIO.LOW)
-
-    # Set the duty cycle of the PWM channel
-    motor1_pwm.ChangeDutyCycle(speed)
-
-# Function to control the speed and direction of motor 2
-def set_motor2(speed, direction):
-    if direction == "forward":
-        # Set the input pins to control the motor direction
-        GPIO.output(motor2_in1, GPIO.HIGH)
-        GPIO.output(motor2_in2, GPIO.LOW)
-    elif direction == "backward":
-        # Set the input pins to control the motor direction
-        GPIO.output(motor2_in1, GPIO.LOW)
-        GPIO.output(motor2_in2, GPIO.HIGH)
-    else:
-        # Stop the motor
-        GPIO.output(motor2_in1, GPIO.LOW)
-        GPIO.output(motor2_in2, GPIO.LOW)
-
-    # Set the duty cycle of the PWM channel
-    motor2_pwm.ChangeDutyCycle(speed)
-
-# Function to make the robot move forward
-def move_forward(speed):
-    # Set the speed and direction of both motors
-    set_motor1(speed, "forward")
-    set_motor2(speed, "forward")
-
-# Function to make the robot move backward
-def move_backward(speed):
-    # Set the speed and direction of both motors
-    set_motor1(speed, "backward")
-    set_motor2(speed, "backward")
-
-# Function to make the robot turn left
-def turn_left(speed):
-    # Set the speed and direction of motor 1
-    set_motor1(speed, "backward")
-
-    # Set the speed and direction of motor 2
-    set_motor2(speed, "forward")
-
-# Function to make the robot turn right
-def turn_right(speed):
-    # Set the speed and direction of motor 1
-    set_motor1(speed, "forward")
-
-    # Set the speed and direction of motor 2
-    set_motor2(speed, "backward")
-
-def stop_motors():
-    set_motor1(0, 'stop')
-    set_motor2(0, 'stop')
-
-# Define a function to be called whenever the encoder value changes
-def update_encoder_value(channel):
-    global encoder_val, encoder_val2
-    if channel == encoder_pin:
-        if GPIO.input(encoder_pin) == GPIO.HIGH:
-            encoder_val += 1
-    elif channel == encoder_pin2:
-        if GPIO.input(encoder_pin2) == GPIO.HIGH:
-            encoder_val2 += 1
-
-def get_linear_vel():
-    global current_time, old_time, encoder_val, encoder_val2
-    current_time = time.time()
-    if current_time - old_time >= 1:
-        pulses_per_sec = encoder_val / (current_time - old_time)
-        rev_per_sec = pulses_per_sec / pulses_per_rev
-        linear_vel = rev_per_sec * wheel_circumference
-        pulses_per_sec = encoder_val2 / (current_time - old_time)
-        rev_per_sec = pulses_per_sec / pulses_per_rev
-        linear_vel2 = rev_per_sec * wheel_circumference
-        old_time = time.time()
-        encoder_val = 0
-        encoder_val2 = 0
-        return linear_vel, linear_vel2
-    else:
-        return None, None
-
-def adjust_speed(change, change2):
-    global pwm_speed, pwm_speed2
-    print(pwm_speed, change, pwm_speed + change, pwm_speed2, change2, pwm_speed2 + change)
-    if (pwm_speed + change <= 100 and pwm_speed + change >=0):
-    	pwm_speed += change
-    	set_motor1(pwm_speed, "forward")
-    if (pwm_speed2 + change2 <= 100 and pwm_speed2 + change2 >=0):
-    	pwm_speed2 += change2
-    	set_motor2(pwm_speed2, "forward")
+# Open the USB serial camera
+camera = cv2.VideoCapture(0)
 
 if __name__ == '__main__':
+    controller = MotorController()
+
     try:
-        GPIO.add_event_detect(encoder_pin, GPIO.RISING,
-                              callback=update_encoder_value)
-        GPIO.add_event_detect(encoder_pin2, GPIO.RISING,
-                              callback=update_encoder_value)
-        print("Moving forward.")
-        move_forward(pwm_speed)
-        main_time = time.time() + 10
-        while time.time() < main_time:
-            current_vel, current_vel2 = get_linear_vel()
-            if current_vel is not None:
-                control = pid(current_vel)
-                control2 = pid(current_vel2)
-                adjust_speed(control, control2)
-                
-                print("Vel 1: " + str(current_vel) +
-                      ", Vel 2: " + str(current_vel2))
+        while True:
+            # Capture a frame from the camera
+            ret, frame = camera.read()
+            height, width, dim = frame.shape
+            center_x = width // 2
+            center_y = height // 2
+
+            # Convert the frame to the HSV color space
+            hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+
+            # Define the lower and upper bounds for the flame color
+            lower_bound = np.array([10, 100, 100])
+            upper_bound = np.array([50, 255, 255])
+
+            # Threshold the HSV image to get only the flame colors
+            mask = cv2.inRange(hsv, lower_bound, upper_bound)
+
+            # Bitwise-AND the mask and the original image
+            res = cv2.bitwise_and(frame, frame, mask=mask)
+
+            # Find contours in the mask
+            contours, _ = cv2.findContours(
+                mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+
+            # Find the contour with the largest area
+            contour_areas = [cv2.contourArea(c) for c in contours]
+            if contour_areas:
+                largest_contour_index = np.argmax(contour_areas)
+                largest_contour = contours[largest_contour_index]
+
+                # Draw a bounding box around the largest flame
+                (x, y, w, h) = cv2.boundingRect(largest_contour)
+
+                if w > 100 and h > 100:
+                    flame_center_x = x + (w//2)
+                    flame_center_y = y + (h//2)
+                    cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 0, 255), 2)
+                    # Add a label to the frame
+                    cv2.putText(frame, 'Flame', (x, y-10),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 255), 2)
+
+                    controller.adjust_speed()
+                    if (flame_center_x >= 2*width/5 and flame_center_x <= 3*width/5):
+                        controller.move('forward')
+                    elif flame_center_x < 2*width/5:
+                        controller.move('right')
+                    else:
+                        controller.move('left')
+
+            # Display the original and processed frames
+            cv2.imshow('Original', frame)
+            cv2.imshow('Flame', res)
+
+            # Check if the 'q' key is pressed
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+
     except Exception as e:
         print(e)
     finally:
-        stop_motors()
+        # Release the camera and destroy the windows
+        camera.release()
+        cv2.destroyAllWindows()
+
+        # Stop motors and clear GPIO pins
+        controller.stop_motors()
         GPIO.cleanup()
