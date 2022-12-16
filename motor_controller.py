@@ -17,9 +17,6 @@ MOTOR2_EN = 24
 ENCODER_PIN = 3
 ENCODER_PIN2 = 4
 
-# Set the GPIO mode to BCM
-GPIO.setmode(GPIO.BCM)
-
 # Set the encoder pins as inputs
 GPIO.setup(ENCODER_PIN, GPIO.IN)
 GPIO.setup(ENCODER_PIN2, GPIO.IN)
