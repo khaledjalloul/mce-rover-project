@@ -1,22 +1,19 @@
 import RPi.GPIO as GPIO
+import time
 
 # Set the GPIO mode
 GPIO.setmode(GPIO.BCM)
 
 # Set the flame sensor pins as inputs
-FLAME_SENSOR_PIN = 21
-FLAME_SENSOR_GROUND_PIN = 20
-FLAME_SENSOR_VCC_PIN = 16
+FLAME_SENSOR_PIN = 9
 GPIO.setup(FLAME_SENSOR_PIN, GPIO.IN)
-GPIO.setup(FLAME_SENSOR_GROUND_PIN, GPIO.IN)
-GPIO.setup(FLAME_SENSOR_VCC_PIN, GPIO.IN)
 
 def read_flame_sensor():
   # Read the flame sensor's value
   value = GPIO.input(FLAME_SENSOR_PIN)
 
   # If the value is 1, it indicates that the flame sensor is detecting a flame
-  if value == 1:
+  if value == 0:
     print("Flame detected!")
   else:
     print("No flame detected.")
