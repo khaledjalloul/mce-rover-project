@@ -7,10 +7,13 @@ from motor_controller import MotorController
 # Set the GPIO mode to BCM
 GPIO.setmode(GPIO.BCM)
 
-# Set the flame sensor pins as inputs
 FLAME_SENSOR_PIN = 9
-GPIO.setup(FLAME_SENSOR_PIN, GPIO.IN)
+RELAY_PIN = 10
 
+GPIO.setup(FLAME_SENSOR_PIN, GPIO.IN)
+GPIO.setup(RELAY_PIN, GPIO.OUT)
+
+pump_on = False
 
 # Open the USB serial camera
 camera = cv2.VideoCapture(0)
@@ -27,8 +30,13 @@ if __name__ == '__main__':
 
     try:
         while True:
-            
+
             if (not read_flame_sensor()):
+                # Turn the water pump off
+                if pump_on:
+                    GPIO.output(RELAY_PIN, GPIO.LOW)
+                    pump_on = False
+
                 # Capture a frame from the camera
                 ret, frame = camera.read()
                 height, width, dim = frame.shape
@@ -54,7 +62,7 @@ if __name__ == '__main__':
 
                 # Find the contour with the largest area
                 contour_areas = [cv2.contourArea(c) for c in contours]
-                
+
                 if contour_areas:
                     largest_contour_index = np.argmax(contour_areas)
                     largest_contour = contours[largest_contour_index]
@@ -65,7 +73,8 @@ if __name__ == '__main__':
                     if w > 100 and h > 100:
                         flame_center_x = x + (w//2)
                         flame_center_y = y + (h//2)
-                        cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 0, 255), 2)
+                        cv2.rectangle(frame, (x, y), (x+w, y+h),
+                                      (0, 0, 255), 2)
                         # Add a label to the frame
                         cv2.putText(frame, 'Flame', (x, y-10),
                                     cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 255), 2)
@@ -87,6 +96,9 @@ if __name__ == '__main__':
                     break
             else:
                 controller.stop_motors()
+                # Turn the water pump on
+                GPIO.output(RELAY_PIN, GPIO.HIGH)
+                pump_on = True
 
     except Exception as e:
         print(e)
