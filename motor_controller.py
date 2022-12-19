@@ -4,11 +4,13 @@ import math
 import time
 from simple_pid import PID
 
+GPIO.setmode(GPIO.BCM)
+
 # Set the pins for the motor driver inputs
 MOTOR1_IN1 = 17
 MOTOR1_IN2 = 18
-MOTOR2_IN1 = 22
-MOTOR2_IN2 = 27
+MOTOR2_IN1 = 27
+MOTOR2_IN2 = 22
 
 # Set the pins for the motor driver outputs
 MOTOR1_EN = 23
@@ -43,8 +45,11 @@ class MotorController:
         self.old_time = 0
         self.pulses_per_rev = 20
         self.wheel_circumference = math.pi * 6.5  # in cm
-        self.pwm_speed = 50
-        self.pwm_speed2 = 50
+        self.pwm_speed = 40
+        self.pwm_speed2 = 40
+        self.linear_vel = 0
+        self.linear_vel2 = 0
+        self.update_speed = False
 
         # Create PWM channels for the motor driver outputs with a frequency of 100 Hz
         self.motor1_pwm = GPIO.PWM(MOTOR1_EN, 100)
@@ -54,7 +59,7 @@ class MotorController:
         self.motor1_pwm.start(self.pwm_speed)
         self.motor2_pwm.start(self.pwm_speed2)
 
-        self.pid = PID(1, 0, 0, setpoint=50)  # Target cm/s
+        self.pid = PID(1, 0, 0, setpoint=25)  # Target cm/s
         self.pid.sample_time = 0.1
 
         GPIO.add_event_detect(ENCODER_PIN, GPIO.RISING,
@@ -106,14 +111,15 @@ class MotorController:
         elif direction == 'backward':
             self.set_motor1('backward')
             self.set_motor2('backward')
+            print("sara was right")
 
         elif direction == 'left':
-            self.set_motor1('forward')
-            self.set_motor2('backward')
-
-        elif direction == 'right':
             self.set_motor1('backward')
             self.set_motor2('forward')
+
+        elif direction == 'right':
+            self.set_motor1('forward')
+            self.set_motor2('backward')
 
     # Function to stop the motors
 
@@ -136,33 +142,32 @@ class MotorController:
         if current_time - self.old_time >= 0.5:
             pulses_per_sec = self.encoder_val / (current_time - self.old_time)
             rev_per_sec = pulses_per_sec / self.pulses_per_rev
-            linear_vel = rev_per_sec * self.wheel_circumference
+            self.linear_vel = rev_per_sec * self.wheel_circumference
             pulses_per_sec = self.encoder_val2 / (current_time - self.old_time)
             rev_per_sec = pulses_per_sec / self.pulses_per_rev
-            linear_vel2 = rev_per_sec * self.wheel_circumference
+            self.linear_vel2 = rev_per_sec * self.wheel_circumference
             self.old_time = time.time()
             self.encoder_val = 0
             self.encoder_val2 = 0
-            return linear_vel, linear_vel2
-        else:
-            return None, None
+            self.update_speed = True
 
     def adjust_speed(self):
-        current_vel, current_vel2 = self.get_linear_vel()
-        if current_vel is not None:
-            control = self.pid(current_vel)
-            control2 = self.pid(current_vel2)
+        self.get_linear_vel()
+        if self.update_speed:
+            control = self.pid(self.linear_vel)
+            control2 = self.pid(self.linear_vel2)
+            self.update_speed = False
 
-        print(self.pwm_speed, control, self.pwm_speed + control,
-              self.pwm_speed2, control2, self.pwm_speed2 + control)
+            print(self.pwm_speed, control, self.pwm_speed + control,
+                self.pwm_speed2, control2, self.pwm_speed2 + control)
 
-        print("Vel 1: " + str(current_vel) +
-              ", Vel 2: " + str(current_vel2))
+            print("Vel 1: " + str(self.linear_vel) +
+                ", Vel 2: " + str(self.linear_vel2))
 
-        if (self.pwm_speed + control <= 100 and self.pwm_speed + control >= 0):
-            self.pwm_speed += control
-            self.motor1_pwm.ChangeDutyCycle(self.pwm_speed)
-        if (self.pwm_speed2 + control2 <= 100 and self.pwm_speed2 + control2 >= 0):
-            self.pwm_speed2 += control2
-            self.motor2_pwm.ChangeDutyCycle(self.pwm_speed2)
-        return self.encoder_val, self.encoder_val2, current_vel, current_vel2
+            if (self.pwm_speed + control <= 100 and self.pwm_speed + control >= 0):
+                self.pwm_speed += control
+                self.motor1_pwm.ChangeDutyCycle(self.pwm_speed)
+            if (self.pwm_speed2 + control2 <= 100 and self.pwm_speed2 + control2 >= 0):
+                self.pwm_speed2 += control2
+                self.motor2_pwm.ChangeDutyCycle(self.pwm_speed2)
+        return self.encoder_val, self.encoder_val2, self.linear_vel, self.linear_vel2

@@ -4,6 +4,7 @@ import numpy as np
 import csv
 from motor_controller import MotorController
 import datetime
+import time
 
 # Set the GPIO mode to BCM
 GPIO.setmode(GPIO.BCM)
@@ -47,14 +48,14 @@ if __name__ == '__main__':
 
         writer.writerow(['Time', 'Encoder 1 Value', 'Encoder 2 Value', 'Speed 1 (cm/s)',
                         'Speed 2 (cm/s)', 'Flame Location', 'Flame X Coordinate', 'Flame Sensor'])
+        
         try:
             while True:
 
                 if (not read_flame_sensor()):
                     # Turn the water pump off
-                    if pump_on:
-                        GPIO.output(RELAY_PIN, GPIO.LOW)
-                        pump_on = False
+                    GPIO.output(RELAY_PIN, GPIO.LOW)
+                    pump_on = False
 
                     # Capture a frame from the camera
                     ret, frame = camera.read()
@@ -87,7 +88,7 @@ if __name__ == '__main__':
                         # Draw a bounding box around the largest flame
                         (x, y, w, h) = cv2.boundingRect(largest_contour)
 
-                        if w > 100 and h > 100:
+                        if w > 70 and h > 70:
                             flame_center_x = x + (w//2)
                             flame_center_y = y + (h//2)
                             cv2.rectangle(frame, (x, y), (x+w, y+h),
@@ -98,15 +99,23 @@ if __name__ == '__main__':
 
                             encoder1_val, encoder2_val, speed1_val, speed2_val = controller.adjust_speed()
                             flame_coordinates = flame_center_x
+                            motors_on = True
+                            print(flame_center_x, 2*width/5, 3*width/5)
                             if (flame_center_x >= 2*width/5 and flame_center_x <= 3*width/5):
+                                print("Center")
                                 flame_location = 'Center'
                                 controller.move('forward')
                             elif flame_center_x < 2*width/5:
-                                flame_location = 'Right'
-                                controller.move('right')
-                            else:
+                                print("Left")
                                 flame_location = 'Left'
                                 controller.move('left')
+                            else:
+                                print("Right")
+                                flame_location = 'Right'
+                                controller.move('right')
+                        if w >= 0.7 * width or h >= 0.7 * height:
+                            controller.stop_motors()
+                            time.sleep(6)
                     else:
                         flame_coordinates = 'None'
                         flame_location = 'None'
@@ -133,9 +142,14 @@ if __name__ == '__main__':
                         controller.stop_motors()
                         motors_on = False
                     # Turn the water pump on
-                    GPIO.output(RELAY_PIN, GPIO.HIGH)
-                    pump_on = True
-
+                    time.sleep(2)
+                    if not pump_on:
+                        GPIO.output(RELAY_PIN, GPIO.HIGH)
+                        print("pump")
+                        pump_on = True
+                        time.sleep(5)
+                        GPIO.output(RELAY_PIN, GPIO.LOW)
+                        break
                 writer.writerow([datetime.datetime.now().strftime('%H:%M:%S'), encoder1_val, encoder2_val,
                                 speed1_val, speed2_val, flame_location, flame_coordinates, flame_sensor_val])
         except Exception as e:
