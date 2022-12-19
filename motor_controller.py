@@ -1,3 +1,4 @@
+from calendar import c
 import RPi.GPIO as GPIO
 import math
 import time
@@ -132,7 +133,7 @@ class MotorController:
 
     def get_linear_vel(self):
         current_time = time.time()
-        if current_time - self.old_time >= 1:
+        if current_time - self.old_time >= 0.5:
             pulses_per_sec = self.encoder_val / (current_time - self.old_time)
             rev_per_sec = pulses_per_sec / self.pulses_per_rev
             linear_vel = rev_per_sec * self.wheel_circumference
@@ -163,4 +164,5 @@ class MotorController:
             self.motor1_pwm.ChangeDutyCycle(self.pwm_speed)
         if (self.pwm_speed2 + control2 <= 100 and self.pwm_speed2 + control2 >= 0):
             self.pwm_speed2 += control2
-            self.motor1_pwm.ChangeDutyCycle(self.pwm_speed2)
+            self.motor2_pwm.ChangeDutyCycle(self.pwm_speed2)
+        return self.encoder_val, self.encoder_val2, current_vel, current_vel2
