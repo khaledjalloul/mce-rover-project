@@ -1,4 +1,3 @@
-from calendar import c
 import RPi.GPIO as GPIO
 import math
 import time
@@ -62,6 +61,7 @@ class MotorController:
         self.pid = PID(1, 0, 0, setpoint=25)  # Target cm/s
         self.pid.sample_time = 0.1
 
+        # Attach interrupts to count encoder pulses
         GPIO.add_event_detect(ENCODER_PIN, GPIO.RISING,
                               callback=self.update_encoder_value)
         GPIO.add_event_detect(ENCODER_PIN2, GPIO.RISING,
@@ -71,11 +71,9 @@ class MotorController:
 
     def set_motor1(self, direction):
         if direction == "forward":
-            # Set the input pins to control the motor direction
             GPIO.output(MOTOR1_IN1, GPIO.HIGH)
             GPIO.output(MOTOR1_IN2, GPIO.LOW)
         elif direction == "backward":
-            # Set the input pins to control the motor direction
             GPIO.output(MOTOR1_IN1, GPIO.LOW)
             GPIO.output(MOTOR1_IN2, GPIO.HIGH)
         else:
@@ -87,22 +85,18 @@ class MotorController:
 
     def set_motor2(self, direction):
         if direction == "forward":
-            # Set the input pins to control the motor direction
             GPIO.output(MOTOR2_IN1, GPIO.HIGH)
             GPIO.output(MOTOR2_IN2, GPIO.LOW)
         elif direction == "backward":
-            # Set the input pins to control the motor direction
             GPIO.output(MOTOR2_IN1, GPIO.LOW)
             GPIO.output(MOTOR2_IN2, GPIO.HIGH)
         else:
-            # Stop the motor
             GPIO.output(MOTOR2_IN1, GPIO.LOW)
             GPIO.output(MOTOR2_IN2, GPIO.LOW)
 
     # Function to make the robot move in any direction
 
     def move(self, direction):
-        # Set the speed and direction of both motors
 
         if direction == 'forward':
             self.set_motor1('forward')
@@ -137,6 +131,8 @@ class MotorController:
             if GPIO.input(ENCODER_PIN2) == GPIO.HIGH:
                 self.encoder_val2 += 1
 
+    # Calculate current linear velocity in cm/s based on the encoder values
+
     def get_linear_vel(self):
         current_time = time.time()
         if current_time - self.old_time >= 0.5:
@@ -151,6 +147,8 @@ class MotorController:
             self.encoder_val2 = 0
             self.update_speed = True
 
+    # Get PID control value and update PWM duty cycle
+
     def adjust_speed(self):
         self.get_linear_vel()
         if self.update_speed:
@@ -159,10 +157,10 @@ class MotorController:
             self.update_speed = False
 
             print(self.pwm_speed, control, self.pwm_speed + control,
-                self.pwm_speed2, control2, self.pwm_speed2 + control)
+                  self.pwm_speed2, control2, self.pwm_speed2 + control)
 
             print("Vel 1: " + str(self.linear_vel) +
-                ", Vel 2: " + str(self.linear_vel2))
+                  ", Vel 2: " + str(self.linear_vel2))
 
             if (self.pwm_speed + control <= 100 and self.pwm_speed + control >= 0):
                 self.pwm_speed += control

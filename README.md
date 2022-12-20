@@ -1,23 +1,35 @@
 # MCE Project
 
-## Pump
+This project is part of the MCE System Design course, and aims to detect small fires using a camera and a flame sensor then attempt to put it out.
 
-In this code, we import the RPi.GPIO and time libraries, which provide access to the GPIO pins and the ability to pause the program execution, respectively. We then set the GPIO mode to BCM and the relay pin as an output.
+## Hardware Components
 
-Next, we turn the water pump on by setting the relay pin to a high logic level using the GPIO.output() function. We then pause the program for 5 seconds using the time.sleep() function, before turning the water pump off by setting the relay pin to a low logic level.
+The components used in the project:
 
-Finally, we clean up the GPIO settings by calling the GPIO.cleanup() function. This ensures that the GPIO pins are reset and available for use in other programs.
+- Raspberry Pi 3B+
+- USB Camera
+- Four TT130 DC motors
+- L293D Motor Driver
+- Two LM393 encoders
+- LM393 flame sensor
+- DC30A-1230 12V Water pump
 
-## Flame Sensor
+## Software
 
-This modified version of the code uses three GPIO pins to connect to the LM393 3 pin flame sensor: one for the sensor's signal output, one for the sensor's ground, and one for the sensor's VCC (power). It then uses these pins to read the value of the flame sensor and determine if a flame is detected.
+The software consists of two python scripts:
 
-## Encoder
+### motor_controller.py
 
-In this code, we import the RPi.GPIO library and set the GPIO mode to BCM. We then specify the GPIO pins that the encoder is connected to, and set them as inputs using the GPIO.setup() function.
+This script is responsible for defining the motor and ecnoder pins, as well as initiate the PWM channels. A move() function is defined to move the robot forward or backward, or rotate it left or right. Every 0.5s, the incremented counters of the encoders are used to regulate the speed of the motors to 30 cm/s using a simple PID controller.
 
-Next, we create a variable to store the encoder value and define a function that will be called whenever the encoder value changes. This function checks the state of the A and B output pins on the encoder and updates the encoder_value variable accordingly.
+### main_control.py
 
-We then set the S pin on the encoder as an interrupt that triggers the update_encoder_value() function whenever the encoder value changes. This allows us to automatically update the encoder_value variable as the encoder is turned.
+This script is the robot's main control. Every loop, the flame sensor digital value is checked. If there is no nearby fire, the camera captures frames in front of the robot, then based on the HSV color values, detects a flame. Based on the location of the flame – right, left, or center – the robot will rotate and move towards the flame.
 
-Finally, we print the initial and final encoder values and clean up the GPIO settings by calling the GPIO.cleanup() function.
+Once it reaches its vicinity, the flame sensor will activate, thus actuating the pump. The pump will start spraying water and remain at it until the flame is no longer detected, then the robot will go back to searching using the camera.
+
+## Demo
+
+A lighter and a printed image were used to simulate a small fire.
+
+![Demo](demo.gif)

@@ -6,7 +6,7 @@ from motor_controller import MotorController
 import datetime
 import time
 
-# Set the GPIO mode to BCM
+# Set the GPIO mode to BCM and define pins
 GPIO.setmode(GPIO.BCM)
 
 FLAME_SENSOR_PIN = 9
@@ -15,6 +15,7 @@ RELAY_PIN = 10
 GPIO.setup(FLAME_SENSOR_PIN, GPIO.IN)
 GPIO.setup(RELAY_PIN, GPIO.OUT)
 
+# Define initial variables
 pump_on = False
 motors_on = False
 flame_location = 'None'
@@ -28,10 +29,9 @@ flame_sensor_val = 0
 # Open the USB serial camera
 camera = cv2.VideoCapture(0)
 
-
+# Read the flame sensor's value
 def read_flame_sensor():
     global flame_sensor_val
-    # Read the flame sensor's value
     value = GPIO.input(FLAME_SENSOR_PIN)
     if (value == 0):
         flame_sensor_val = 1
@@ -46,13 +46,15 @@ if __name__ == '__main__':
     with open('data.csv', 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
 
+        # Write csv data column
         writer.writerow(['Time', 'Encoder 1 Value', 'Encoder 2 Value', 'Speed 1 (cm/s)',
                         'Speed 2 (cm/s)', 'Flame Location', 'Flame X Coordinate', 'Flame Sensor'])
-        
+
         try:
             while True:
 
                 if (not read_flame_sensor()):
+
                     # Turn the water pump off
                     GPIO.output(RELAY_PIN, GPIO.LOW)
                     pump_on = False
@@ -88,6 +90,7 @@ if __name__ == '__main__':
                         # Draw a bounding box around the largest flame
                         (x, y, w, h) = cv2.boundingRect(largest_contour)
 
+                        # Limit detected contours to those larger than threshold
                         if w > 70 and h > 70:
                             flame_center_x = x + (w//2)
                             flame_center_y = y + (h//2)
@@ -97,10 +100,12 @@ if __name__ == '__main__':
                             cv2.putText(frame, 'Flame', (x, y-10),
                                         cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 255), 2)
 
+                            # Get encoder and speed values
                             encoder1_val, encoder2_val, speed1_val, speed2_val = controller.adjust_speed()
                             flame_coordinates = flame_center_x
                             motors_on = True
-                            print(flame_center_x, 2*width/5, 3*width/5)
+
+                            # Move robot based on flame location
                             if (flame_center_x >= 2*width/5 and flame_center_x <= 3*width/5):
                                 print("Center")
                                 flame_location = 'Center'
@@ -113,12 +118,15 @@ if __name__ == '__main__':
                                 print("Right")
                                 flame_location = 'Right'
                                 controller.move('right')
+
+                        # Stop the robot if the flame is very close
                         if w >= 0.7 * width or h >= 0.7 * height:
                             controller.stop_motors()
                             time.sleep(6)
                     else:
                         flame_coordinates = 'None'
                         flame_location = 'None'
+                        # Turn off motors
                         if motors_on:
                             encoder1_val = 0
                             encoder2_val = 0
@@ -126,11 +134,12 @@ if __name__ == '__main__':
                             speed2_val = 0
                             controller.stop_motors()
                             motors_on = False
+
                     # Display the original and processed frames
                     cv2.imshow('Original', frame)
                     cv2.imshow('Flame', res)
 
-                    # Check if the 'q' key is pressed
+                    # Display frame for 1ms and check if the 'q' key is pressed
                     if cv2.waitKey(1) & 0xFF == ord('q'):
                         break
                 else:
@@ -141,15 +150,16 @@ if __name__ == '__main__':
                         speed2_val = 0
                         controller.stop_motors()
                         motors_on = False
-                    # Turn the water pump on
+
+                    # Turn the water pump on after a short delay
                     time.sleep(2)
                     if not pump_on:
                         GPIO.output(RELAY_PIN, GPIO.HIGH)
-                        print("pump")
+                        print("Pump actuated.")
                         pump_on = True
                         time.sleep(5)
-                        GPIO.output(RELAY_PIN, GPIO.LOW)
-                        break
+
+                # Write sensor data to csv file
                 writer.writerow([datetime.datetime.now().strftime('%H:%M:%S'), encoder1_val, encoder2_val,
                                 speed1_val, speed2_val, flame_location, flame_coordinates, flame_sensor_val])
         except Exception as e:
